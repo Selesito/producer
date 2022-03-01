@@ -10,8 +10,10 @@ import morozov.vu.repository.ShopOneRepository;
 import morozov.vu.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import tech.jhipster.web.util.HeaderUtil;
@@ -34,6 +36,9 @@ public class ShopOneResource {
 
     private final ShopOneRepository shopOneRepository;
 
+    @Autowired
+    private KafkaTemplate<Long, ShopOne> kafkaTemplate;
+
     public ShopOneResource(ShopOneRepository shopOneRepository) {
         this.shopOneRepository = shopOneRepository;
     }
@@ -52,6 +57,8 @@ public class ShopOneResource {
             throw new BadRequestAlertException("A new shopOne cannot already have an ID", ENTITY_NAME, "idexists");
         }
         ShopOne result = shopOneRepository.save(shopOne);
+        kafkaTemplate.send("topic", shopOne.getId(), shopOne);
+        kafkaTemplate.flush();
         return ResponseEntity
             .created(new URI("/api/shop-ones/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId().toString()))
